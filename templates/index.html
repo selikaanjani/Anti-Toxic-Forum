@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Antitoxic Forum</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="flex flex-col items-center">
+    <header class="flex items-center justify-between w-full px-6 py-4">
+      <h1 class="text-3xl font-semibold">Antitoxic Forum</h1>
+      <p>Hello, {{ current_user.name }}</p>
+    </header>
+    <div class="mt-6 px-8 py-3 w-full lg:max-w-2xl">
+      <div
+        class="flex flex-col border rounded-lg h-[70vh] lg:h-[78vh] overflow-y-auto p-6 gap-y-6"
+        id="message-list"
+      ></div>
+    </div>
+
+    <form
+      class="px-8 flex flex-col gap-y-4 lg:gap-y-0 lg:flex-row lg:items-center lg:gap-x-4 my-3 w-full lg:max-w-2xl"
+      id="message-form"
+      method="post"
+    >
+      <input
+        class="border rounded-lg px-3 py-2 w-full focus:outline focus:outline-purple-500 focus:outline-offset-1"
+        name="message"
+        type="text"
+      />
+      <button
+        class="bg-purple-600 text-white px-4 py-2 rounded-lg"
+        type="submit"
+      >
+        Submit
+      </button>
+    </form>
+
+    <script>
+      function formatDate(date) {
+        const pad = (num) => (num < 10 ? "0" + num : num);
+
+        const day = pad(date.getDate());
+        const month = pad(date.getMonth() + 1); // Months are zero-indexed
+        const year = date.getFullYear();
+
+        const hours = pad(date.getHours());
+        const minutes = pad(date.getMinutes());
+        const seconds = pad(date.getSeconds());
+
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      }
+
+      const messageFormRef = document.querySelector("#message-form");
+      const messageListRef = document.querySelector("#message-list");
+
+      messageFormRef.addEventListener("submit", handleSubmit);
+
+      async function handleSubmit(e) {
+        e.preventDefault();
+
+        const formData = new FormData(messageFormRef);
+
+        const response = await fetch("/post", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: formData.get("message"),
+          }),
+        });
+
+        const result = await response.json();
+
+        window.location.href = "/";
+      }
+
+      async function getPosts() {
+        const response = await fetch("/post");
+        const data = await response.json();
+        const posts = data["data"];
+
+        return posts;
+      }
+
+      window.onload = async function loadPosts() {
+        messageListRef.innerHTML = "";
+        const posts = await getPosts();
+        posts.forEach((post) => {
+          const [toxic, severeToxic, obscene, threat, insult, identityHate] =
+            post.toxicity_percentages;
+
+          messageListRef.innerHTML += `<div class="flex flex-col ${
+            post.self ? "ml-auto" : ""
+          }">
+              <p class="text-xs ${post.self ? "ml-auto" : ""}">${
+            post.user
+          } ${formatDate(new Date(post.created_at))}</p>
+              <p class="${
+                post.censored ? "line-through" : ""
+              } px-3 py-2 rounded-lg w-fit mb-2 ${
+            post.self ? "bg-purple-100 ml-auto" : "bg-neutral-100"
+          }">${post.message}</p>
+              <p class="text-xs mb-2">
+                <span class="text-red-500 inline-block w-32">Toxic (${toxic}%)</span>
+                <span class="text-orange-500 inline-block w-32">Severe Toxic (${severeToxic}%)</span>
+                <span class="text-yellow-500 inline-block w-32">Obscene (${obscene}%)</span>
+              </p>
+              <p class="text-xs">
+                <span class="text-red-500 inline-block w-32">Threat (${threat}%)</span>
+                <span class="text-orange-500 inline-block w-32">Insult (${insult}%)</span>
+                <span class="text-yellow-500 inline-block w-32">Identity Hate (${identityHate}%)</span>
+              </p>
+            </div>`;
+        });
+      };
+    </script>
+  </body>
+</html>
